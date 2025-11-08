@@ -4,3 +4,7 @@
 [submodule "poky"]
 	path = poky
 	url = https://git.yoctoproject.org/git/poky.git
+[submodule "meta-openembedded"]
+	path = meta-openembedded
+	url = https://github.com/openembedded/meta-openembedded.git
+	branch = kirkstone

@@ -32,7 +32,7 @@ lsblk
 echo
 read -p "Enter your SD card device (e.g., /dev/sdb): " DEV
 echo "⚠️  This will erase all data on $DEV"
-read -p "Type 'yes' to continue: " CONFIRMroot
+read -p "Type 'yes' to continue: " CONFIRM
 
 [ "$CONFIRM" != "yes" ] && echo "Aborted." && exit 0
 

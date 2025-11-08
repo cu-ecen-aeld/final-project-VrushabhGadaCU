@@ -1,0 +1,11 @@
+[Unit]
+Description=Auto-connect WiFi
+After=network.target
+
+[Service]
+ExecStart=/sbin/wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant.conf
+ExecStartPost=/sbin/dhclient wlan0
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
