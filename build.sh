@@ -17,11 +17,11 @@ source poky/oe-init-build-env
 CONFLINE='MACHINE = "raspberrypi4-64"'
 IMAGE='IMAGE_FSTYPES = "wic.bz2"'
 MEMORY='GPU_MEM = "16"'
-DISTRO_F='DISTRO_FEATURES:append = " wifi"'
+DISTRO_F='DISTRO_FEATURES:append = " wifi systemd"'
+SYSTEMD_INIT='VIRTUAL-RUNTIME_init_manager = "systemd"'
+SYSTEMD_BACKFILL='DISTRO_FEATURES_BACKFILL_CONSIDERED = "sysvinit"'
 IMAGE_F='IMAGE_FEATURES += "ssh-server-openssh"'
-# Fixed: Added kernel-modules to ensure all necessary drivers (including storage) are included
-IMAGE_ADD='IMAGE_INSTALL:append = " linux-firmware-rpidistro-bcm43455 wpa-supplicant kernel-modules"'
-
+IMAGE_ADD='IMAGE_INSTALL:append = " linux-firmware-rpidistro-bcm43455 wpa-supplicant kernel-modules dhcpcd iw iproute2 wpa-supplicant-config"'
 CONF_FILE="conf/local.conf"
 
 # --- Ensure local.conf exists ---
@@ -36,6 +36,8 @@ sed -i '/^MACHINE = "raspberrypi4-64"/d' "$CONF_FILE"
 sed -i '/^IMAGE_FSTYPES = "wic.bz2"/d' "$CONF_FILE"
 sed -i '/^GPU_MEM = "16"/d' "$CONF_FILE"
 sed -i '/DISTRO_FEATURES:append.*wifi/d' "$CONF_FILE"
+sed -i '/VIRTUAL-RUNTIME_init_manager/d' "$CONF_FILE"
+sed -i '/DISTRO_FEATURES_BACKFILL_CONSIDERED/d' "$CONF_FILE"
 sed -i '/IMAGE_FEATURES.*ssh-server-openssh/d' "$CONF_FILE"
 sed -i '/IMAGE_INSTALL:append/d' "$CONF_FILE"
 
@@ -52,6 +54,8 @@ append_config "$CONFLINE" "$CONF_FILE"
 append_config "$IMAGE" "$CONF_FILE"
 append_config "$MEMORY" "$CONF_FILE"
 append_config "$DISTRO_F" "$CONF_FILE"
+append_config "$SYSTEMD_INIT" "$CONF_FILE"
+append_config "$SYSTEMD_BACKFILL" "$CONF_FILE"
 append_config "$IMAGE_F" "$CONF_FILE"
 append_config "$IMAGE_ADD" "$CONF_FILE"
 
@@ -78,6 +82,7 @@ add_layer_if_missing "../meta-openembedded/meta-oe"
 add_layer_if_missing "../meta-openembedded/meta-python"
 add_layer_if_missing "../meta-openembedded/meta-networking"
 add_layer_if_missing "../meta-raspberrypi"
+add_layer_if_missing "../meta-custom"
 
 # --- Final Build ---
 echo ""
@@ -91,12 +96,8 @@ echo "=== Build Complete ==="
 echo "Image location: tmp/deploy/images/raspberrypi4-64/"
 echo ""
 echo "To flash the image to SD card:"
-echo "  cd tmp/deploy/images/raspberrypi4-64/"
-echo "  bunzip2 -dk core-image-minimal-raspberrypi4-64.wic.bz2"
-echo "  sudo dd if=core-image-minimal-raspberrypi4-64.wic of=/dev/sdb bs=4M status=progress && sync"
-echo ""
-echo "After boot, configure WiFi with:"
-echo "  1. Create /etc/wpa_supplicant/wpa_supplicant-wlan0.conf"
-echo "  2. Add your network credentials"
-echo "  3. Run: systemctl enable wpa_supplicant@wlan0 && systemctl start wpa_supplicant@wlan0"
-echo ""
+echo "  cd build/tmp/deploy/images/raspberrypi4-64/"
+echo "  bunzip2 -dkf core-image-minimal-raspberrypi4-64.wic.bz2"
+echo "  sudo dd if=core-image-minimal-raspberrypi4-64.wic of=/dev/sdX bs=4M status=progress conv=fsync"
+echo "  sync"
+echo "  sudo eject /dev/sdb"
