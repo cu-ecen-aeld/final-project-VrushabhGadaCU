@@ -52,6 +52,8 @@ sed -i '/UBOOT_LOADADDRESS/d' "$CONF_FILE"
 sed -i '/KERNEL_IMAGETYPE/d' "$CONF_FILE"
 sed -i '/KERNEL_CLASSES/d' "$CONF_FILE"
 sed -i '/PREFERRED_VERSION_u-boot/d' "$CONF_FILE"
+sed -i '/KERNEL_DEVICETREE/d' "$CONF_FILE"
+sed -i '/UBOOT_MACHINE/d' "$CONF_FILE"
 
 # --- Generate RSA Keys for Secure Boot ---
 echo "=== Generating RSA keys for secure boot ==="
@@ -107,6 +109,7 @@ append_config '' "$CONF_FILE"
 append_config '# === U-BOOT CONFIGURATION ===' "$CONF_FILE"
 append_config 'RPI_USE_U_BOOT = "1"' "$CONF_FILE"
 append_config 'PREFERRED_PROVIDER_virtual/bootloader = "u-boot"' "$CONF_FILE"
+append_config 'UBOOT_MACHINE = "rpi_4_defconfig"' "$CONF_FILE"
 append_config 'MENDER_UBOOT_AUTO_CONFIGURE = "0"' "$CONF_FILE"
 append_config '' "$CONF_FILE"
 
@@ -117,15 +120,20 @@ append_config 'UBOOT_SIGN_ENABLE = "1"' "$CONF_FILE"
 append_config 'UBOOT_SIGN_KEYDIR = "${TOPDIR}/../meta-custom/recipes-bsp/u-boot/files/keys"' "$CONF_FILE"
 append_config 'UBOOT_SIGN_KEYNAME = "dev"' "$CONF_FILE"
 append_config 'UBOOT_MKIMAGE_DTCOPTS = "-I dts -O dtb -p 2000"' "$CONF_FILE"
-append_config 'UBOOT_SIGN_IMG_KEYNAME = "dev"' "$CONF_FILE"
+append_config 'UBOOT_FIT_HASH_ALG = "sha256"' "$CONF_FILE"
+append_config 'UBOOT_FIT_SIGN_ALG = "rsa2048"' "$CONF_FILE"
+append_config 'UBOOT_FIT_KEY_GENRSA_ARGS = "-F4"' "$CONF_FILE"
+append_config 'UBOOT_FIT_GENERATE_KEYS = "0"' "$CONF_FILE"
 append_config '' "$CONF_FILE"
 
 # Kernel configuration for FIT image
 append_config '# === KERNEL FIT IMAGE CONFIGURATION ===' "$CONF_FILE"
 append_config 'KERNEL_IMAGETYPE = "fitImage"' "$CONF_FILE"
 append_config 'KERNEL_CLASSES += "kernel-fitimage"' "$CONF_FILE"
+append_config 'KERNEL_IMAGETYPES = "Image fitImage"' "$CONF_FILE"
 append_config 'UBOOT_ENTRYPOINT = "0x00080000"' "$CONF_FILE"
 append_config 'UBOOT_LOADADDRESS = "0x00080000"' "$CONF_FILE"
+append_config 'KERNEL_DEVICETREE = "broadcom/bcm2711-rpi-4-b.dtb"' "$CONF_FILE"
 append_config '' "$CONF_FILE"
 
 # Serial Console Configuration
@@ -145,7 +153,7 @@ append_config '' "$CONF_FILE"
 # Image Features and Packages
 append_config '# === IMAGE CONFIGURATION ===' "$CONF_FILE"
 append_config 'IMAGE_FEATURES += "ssh-server-openssh"' "$CONF_FILE"
-append_config 'IMAGE_INSTALL:append = " linux-firmware-rpidistro-bcm43455 linux-firmware-bcm43430 wpa-supplicant wpa-supplicant-cli wpa-supplicant-passphrase dhcpcd iw iproute2 kernel-modules kernel-image kernel-devicetree packagegroup-base u-boot-fw-utils"' "$CONF_FILE"
+append_config 'IMAGE_INSTALL:append = " linux-firmware-rpidistro-bcm43455 linux-firmware-bcm43430 wpa-supplicant wpa-supplicant-cli wpa-supplicant-passphrase dhcpcd iw iproute2 kernel-modules kernel-image kernel-devicetree packagegroup-base u-boot-fw-utils u-boot-default-script"' "$CONF_FILE"
 append_config '' "$CONF_FILE"
 
 # Image Sizing (allow for growth during updates)
@@ -221,53 +229,6 @@ echo "Showing key configurations:"
 grep -E "(^MACHINE|^IMAGE_FSTYPES|^UBOOT_SIGN|^KERNEL_IMAGETYPE|^MENDER_ARTIFACT_SIGNING|^MENDER_STORAGE|^MENDER_SERVER)" "$CONF_FILE" || true
 echo ""
 
-# --- Create U-Boot bbappend for secure boot integration ---
-echo "=== Creating U-Boot bbappend for secure boot ==="
-UBOOT_BBAPPEND_DIR="../meta-custom/recipes-bsp/u-boot"
-mkdir -p "$UBOOT_BBAPPEND_DIR"
-
-cat > "$UBOOT_BBAPPEND_DIR/u-boot_%.bbappend" << 'EOF'
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-
-# Enable verified boot in U-Boot
-UBOOT_CONFIG[verified-boot] = "CONFIG_FIT_SIGNATURE=y"
-
-# Add device tree for public key embedding
-SRC_URI += "file://keys/dev.crt"
-
-do_configure:append() {
-    # Ensure U-Boot config includes FIT signature support
-    echo "CONFIG_FIT_SIGNATURE=y" >> ${B}/.config
-    echo "CONFIG_RSA=y" >> ${B}/.config
-    echo "CONFIG_FIT_SIGNATURE_MAX_SIZE=0x10000000" >> ${B}/.config
-}
-EOF
-
-echo "✓ Created u-boot_%.bbappend"
-
-# --- Create kernel bbappend for FIT image ---
-echo "=== Creating kernel bbappend for FIT image signing ==="
-KERNEL_BBAPPEND_DIR="../meta-custom/recipes-kernel/linux"
-mkdir -p "$KERNEL_BBAPPEND_DIR"
-
-cat > "$KERNEL_BBAPPEND_DIR/linux-raspberrypi_%.bbappend" << 'EOF'
-# Enable FIT image generation with signature
-KERNEL_IMAGETYPE = "fitImage"
-KERNEL_CLASSES += "kernel-fitimage"
-
-# FIT image configuration
-UBOOT_SIGN_ENABLE = "1"
-UBOOT_SIGN_KEYDIR = "${TOPDIR}/../meta-custom/recipes-bsp/u-boot/files/keys"
-UBOOT_SIGN_KEYNAME = "dev"
-
-# Kernel load addresses for RPi4
-UBOOT_ENTRYPOINT = "0x00080000"
-UBOOT_LOADADDRESS = "0x00080000"
-EOF
-
-echo "✓ Created linux-raspberrypi_%.bbappend"
-
-# --- Final Build ---
 echo ""
 echo "=== Starting Yocto build for Raspberry Pi 4 with Mender + Secure Boot ==="
 echo "Target: core-image-minimal with WiFi, SSH, Mender OTA, and Verified Boot"

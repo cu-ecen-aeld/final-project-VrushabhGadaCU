@@ -1,0 +1,48 @@
+/dts-v1/;
+
+/ {
+    description = "Raspberry Pi 4 Secure Boot FIT Image";
+    #address-cells = <1>;
+
+    images {
+        kernel-1 {
+            description = "Linux Kernel 5.15";
+            data = /incbin/("./Image");
+            type = "kernel";
+            arch = "arm64";
+            os = "linux";
+            compression = "none";
+            load = <0x00080000>;
+            entry = <0x00080000>;
+            hash-1 {
+                algo = "sha256";
+            };
+        };
+        
+        fdt-1 {
+            description = "Raspberry Pi 4 Model B Device Tree";
+            data = /incbin/("./bcm2711-rpi-4-b.dtb");
+            type = "flat_dt";
+            arch = "arm64";
+            compression = "none";
+            hash-1 {
+                algo = "sha256";
+            };
+        };
+    };
+
+    configurations {
+        default = "config-1";
+        
+        config-1 {
+            description = "Boot Linux kernel with FDT";
+            kernel = "kernel-1";
+            fdt = "fdt-1";
+            signature-1 {
+                algo = "sha256,rsa2048";
+                key-name-hint = "dev";
+                sign-images = "fdt", "kernel";
+            };
+        };
+    };
+};

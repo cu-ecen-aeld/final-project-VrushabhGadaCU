@@ -1,7 +1,17 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-# Add public key for artifact verification
-SRC_URI += "file://artifact-verify-key.pem"
+# Copy the verification key during configure phase
+do_configure:prepend() {
+    KEY_SOURCE="${TOPDIR}/../meta-custom/recipes-bsp/u-boot/files/keys/dev.crt"
+    KEY_DEST="${WORKDIR}/artifact-verify-key.pem"
+    
+    if [ -f "$KEY_SOURCE" ]; then
+        bbnote "Copying verification key from $KEY_SOURCE"
+        cp "$KEY_SOURCE" "$KEY_DEST"
+    else
+        bbfatal "Verification key not found at $KEY_SOURCE - run build script to generate keys first"
+    fi
+}
 
 # Install verification key
 do_install:append() {
@@ -10,6 +20,9 @@ do_install:append() {
     # Install the public key for artifact verification
     if [ -f ${WORKDIR}/artifact-verify-key.pem ]; then
         install -m 0644 ${WORKDIR}/artifact-verify-key.pem ${D}${sysconfdir}/mender/
+        bbnote "Installed artifact verification key"
+    else
+        bbfatal "artifact-verify-key.pem not found"
     fi
 }
 
@@ -21,7 +34,7 @@ do_install:append() {
     fi
     
     # Create mender.conf with signature verification enabled
-    cat > ${D}${sysconfdir}/mender/mender.conf << MENDEREOF
+    cat > ${D}${sysconfdir}/mender/mender.conf << 'MENDEREOF'
 {
   "ArtifactVerifyKey": "/etc/mender/artifact-verify-key.pem",
   "ServerURL": "https://hosted.mender.io",
@@ -31,7 +44,12 @@ do_install:append() {
   "RetryPollIntervalSeconds": 300
 }
 MENDEREOF
+    
+    bbnote "✓ Mender configuration updated with signature verification"
 }
 
 FILES:${PN} += "${sysconfdir}/mender/artifact-verify-key.pem"
 FILES:${PN} += "${sysconfdir}/mender/mender.conf"
+
+# Ensure the key is readable
+CONFFILES:${PN} += "${sysconfdir}/mender/mender.conf"
