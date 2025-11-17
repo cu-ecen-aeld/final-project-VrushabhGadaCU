@@ -1,0 +1,17 @@
+/dts-v1/;
+
+/ {
+    model = "Raspberry Pi 4 Model B";
+    compatible = "raspberrypi,4-model-b", "brcm,bcm2711";
+    #address-cells = <2>;
+    #size-cells = <1>;
+    
+    chosen {
+        stdout-path = "serial0:115200n8";
+    };
+    
+    memory@0 {
+        device_type = "memory";
+        reg = <0x0 0x0 0x0>;
+    };
+};
